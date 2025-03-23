@@ -1,4 +1,4 @@
-from hadeh import Symbol, Or, Not
+from model import Symbol, Or, Not
 
 def build_disjunction(op1: Symbol, op2: set[Symbol] | Symbol) -> Or:
 

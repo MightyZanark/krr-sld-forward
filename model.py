@@ -2,113 +2,193 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Union
 
-@dataclass
+Expr = Union["Symbol", "And", "Or", "Not", "Implies", "Iff"]
+
+@dataclass(frozen=True)
 class Symbol:
     name: str
 
-    def __hash__(self):
-        return hash(self.name)
-
-    def __eq__(self, other: Symbol) -> bool:
-        if not isinstance(other, Symbol):
-            return False
-        return self.name == other.name
-
-    def __or__(self, other: Symbol) -> Or:
+    def __or__(self, other):
         return Or(self, other)
 
-    def __and__(self, other: Symbol) -> And:
+    def __and__(self, other):
         return And(self, other)
 
-    def __invert__(self) -> Not:
+    def __invert__(self):
         return Not(self)
 
-    def __rshift__(self, other: Symbol) -> Implies:
+    def __rshift__(self, other):
         return Implies(self, other)
 
-    def __lshift__(self, other: Symbol) -> Implies:
+    def __lshift__(self, other):
         return Implies(other, self)
+
+    def __eq__(self, other):
+        return isinstance(other, Symbol) and self.name == other.name
 
     def to_cnf(self):
         return self
 
-@dataclass
+    def __str__(self):
+        return self.name
+
+
+@dataclass(frozen=True)
 class And:
-    op1: Union[Symbol, Or, And, Not, Implies]
-    op2: Union[Symbol, Or, And, Not, Implies]
+    operands: tuple[Expr, ...]
 
-    def __eq__(self, other: And) -> bool:
-        if not isinstance(other, And):
-            return False
-        return (
-            (self.op1 == other.op1 and self.op2 == other.op2)
-            or (self.op1 == other.op2 and self.op2 == other.op1)
-        ) # because AND is commutative
-
-    def __hash__(self):
-        return hash((self.op1, self.op2))
+    def __init__(self, *args: Expr):
+        flat = []
+        for a in args:
+            if isinstance(a, And):
+                flat.extend(a.operands)
+            else:
+                flat.append(a)
+        unique = list(set(flat))
+        object.__setattr__(self, "operands", tuple(unique))
 
     def to_cnf(self):
-        return And(self.op1.to_cnf(), self.op2.to_cnf())
+        return And(*(op.to_cnf() for op in self.operands))
 
-@dataclass
+    def __str__(self):
+        return "(" + " ∧ ".join(str(op) for op in self.operands) + ")"
+
+    def __eq__(self, other):
+        return isinstance(other, And) and set(self.operands) == set(other.operands)
+
+
+@dataclass(frozen=True)
 class Or:
-    op1: Union[Symbol, Or, And, Not, Implies]
-    op2: Union[Symbol, Or, And, Not, Implies]
+    operands: tuple[Expr, ...]
 
-    def __eq__(self, other: Or) -> bool:
-        if not isinstance(other, Or):
-            return False
-        return (
-            (self.op1 == other.op1 and self.op2 == other.op2)
-            or (self.op1 == other.op2 and self.op2 == other.op1)
-        ) # because OR is commutative
-
-    def __hash__(self):
-        return hash((self.op1, self.op2))
+    def __init__(self, *args: Expr):
+        flat = []
+        for a in args:
+            if isinstance(a, Or):
+                flat.extend(a.operands)
+            else:
+                flat.append(a)
+        unique = list(set(flat))
+        object.__setattr__(self, "operands", tuple(unique))
 
     def to_cnf(self):
-        if isinstance(self.op1, And):
-            return And(Or(self.op1.op1, self.op2), Or(self.op1.op2, self.op2)).to_cnf()
-        elif isinstance(self.op2, And):
-            return And(Or(self.op1, self.op2.op1), Or(self.op1, self.op2.op2)).to_cnf()
-        else:
-            return Or(self.op1.to_cnf(), self.op2.to_cnf())
+        ops = [op.to_cnf() for op in self.operands]
 
-@dataclass
+        # Distribusi jika perlu
+        for i, op in enumerate(ops):
+            if isinstance(op, And):
+                rest = ops[:i] + ops[i+1:]
+                return And(*(Or(a, *rest).to_cnf() for a in op.operands)).to_cnf()
+        return Or(*ops)
+
+    def __str__(self):
+        return "(" + " ∨ ".join(str(op) for op in self.operands) + ")"
+
+    def __eq__(self, other):
+        return isinstance(other, Or) and set(self.operands) == set(other.operands)
+
+
+@dataclass(frozen=True)
 class Not:
-    symbol: Union[Symbol, Or, And, Not, Implies]
+    expr: Expr
 
-    def __eq__(self, other: Not) -> bool:
-        if not isinstance(other, Not):
-            return False
-        return self.symbol == other.symbol
-
-    def __hash__(self):
-        return hash(self.symbol)
+    def __eq__(self, other):
+        return isinstance(other, Not) and self.expr == other.expr
 
     def to_cnf(self):
-        if isinstance(self.symbol, Not):
-            return self.symbol.symbol.to_cnf()
-        elif isinstance(self.symbol, And):
-            return Or(Not(self.symbol.op1), Not(self.symbol.op2)).to_cnf()
-        elif isinstance(self.symbol, Or):
-            return And(Not(self.symbol.op1).to_cnf(), Not(self.symbol.op2).to_cnf())
+        e = self.expr
+        if isinstance(e, Symbol):
+            return Not(e)
+
+        elif isinstance(e, Not):
+            return e.expr.to_cnf()
+
+        elif isinstance(e, And):
+            # ¬(A ∧ B ∧ ...) → ¬A ∨ ¬B ∨ ...
+            return Or(*(Not(op).to_cnf() for op in e.operands))
+
+        elif isinstance(e, Or):
+            # ¬(A ∨ B ∨ ...) → ¬A ∧ ¬B ∧ ...
+            return And(*(Not(op).to_cnf() for op in e.operands))
+
+        elif isinstance(e, Implies):
+            # ¬(A ⊃ B) → A ∧ ¬B
+            return And(e.premise.to_cnf(), Not(e.conclusion).to_cnf())
+
+        elif isinstance(e, Iff):
+            # ¬(A ≡ B) → ¬((A ⊃ B) ∧ (B ⊃ A))
+            return Not(e.to_cnf()).to_cnf()
+
         else:
-            return Not(self.symbol)
+            raise Exception(f"Unknown NOT expression: {e}")
 
-@dataclass
+    def __str__(self):
+        if isinstance(self.expr, Symbol):
+            return f"¬{self.expr}"
+        return f"¬({self.expr})"
+
+
+@dataclass(frozen=True)
 class Implies:
-    premise: Union[Symbol, Or, And, Not, Implies]
-    conclusion: Union[Symbol, Or, And, Not, Implies]
+    premise: Expr
+    conclusion: Expr
+    
+    def __eq__(self, other):
+        return (
+            isinstance(other, Implies)
+            and self.premise == other.premise
+            and self.conclusion == other.conclusion
+        )
 
-    def __eq__(self, other: Implies) -> bool:
-        if not isinstance(other, Implies):
-            return False
-        return self.premise == other.premise and self.conclusion == other.conclusion
-
-    def __hash__(self):
-        return hash((self.premise, self.conclusion))
 
     def to_cnf(self):
-        return Or(Not(self.premise), self.conclusion).to_cnf()
+        return Or(Not(self.premise).to_cnf(), self.conclusion.to_cnf())
+
+    def __str__(self):
+        return f"({self.premise} ⊃ {self.conclusion})"
+
+
+@dataclass(frozen=True)
+class Iff:
+    left: Expr
+    right: Expr
+
+    def __eq__(self, other):
+        return isinstance(other, Iff) and (
+            (self.left == other.left and self.right == other.right)
+            or (self.left == other.right and self.right == other.left)
+        )
+
+    def to_cnf(self):
+        return And(
+            Implies(self.left, self.right).to_cnf(),
+            Implies(self.right, self.left).to_cnf(),
+        )
+
+    def __str__(self):
+        return f"({self.left} ≡ {self.right})"
+
+def is_cnf(expr: Expr) -> bool:
+    if not isinstance(expr, And):
+        return False
+    clause_set = set()
+    for clause in expr.operands:
+        if clause in clause_set:
+            return False
+        clause_set.add(clause)
+        if isinstance(clause, Or):
+            seen = set()
+            for literal in clause.operands:
+                if not is_literal(literal):
+                    return False
+                if str(literal) in seen:
+                    return False
+                seen.add(str(literal))
+        elif is_literal(clause):
+            continue
+        else:
+            return False
+    return True
+
+def is_literal(expr: Expr) -> bool:
+    return isinstance(expr, Symbol) or (isinstance(expr, Not) and isinstance(expr.expr, Symbol))

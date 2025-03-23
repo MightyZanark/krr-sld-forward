@@ -1,4 +1,4 @@
-from hadeh import Symbol, Or, And, Not, Implies
+from model import Symbol, Or, And, Not, Implies
 from typing import List, Union
 from parser import parse
 
@@ -90,9 +90,9 @@ def sld_resolution(knowledge_base: List[Union[Symbol, Implies, And, Or, Not]], g
             return "NO"
 
 if __name__ == "__main__":
-    knowledge_base = list(parse("tc2.cnf")[0])
+    knowledge_base = list(parse("tc1.cnf")[0])
 
-    goals = [Symbol("3")]
+    goals = [Symbol("4"), Symbol("3")]
 
     for i, rule in enumerate(knowledge_base):
         if isinstance(rule, Implies):
