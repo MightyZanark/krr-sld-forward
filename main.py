@@ -1,6 +1,9 @@
 from model import Symbol, Or, And, Not, Implies
 from typing import List, Union
 from parser import parse
+import time
+import psutil
+import os
 
 def forward_chaining(knowledge_base: List[Union[Symbol, Implies, And, Or, Not]]) -> List[Symbol]:
     inferred = set()
@@ -89,15 +92,26 @@ def sld_resolution(knowledge_base: List[Union[Symbol, Implies, And, Or, Not]], g
         if not found_clause:
             return "NO"
 
+def get_memory_usage():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / (1024 ** 2)
+
 if __name__ == "__main__":
-    knowledge_base = list(parse("tc1.cnf")[0])
+    start_time = time.time()
+    print(f"Initial memory usage: {get_memory_usage():.2f} MB\n")
 
-    goals = [Symbol("4"), Symbol("3")]
-
+    knowledge_base = list(parse("tc3.cnf")[0])
     for i, rule in enumerate(knowledge_base):
         if isinstance(rule, Implies):
             knowledge_base[i] = rule.to_cnf()
 
+    goals = [Symbol("16"), Symbol("39"), Symbol("51"), Symbol("77")]
+    print("Goals:",goals)
+
     # Perform SLD resolution
     result = sld_resolution(knowledge_base, goals)
-    print("Result:", result)  # Output: "YES" or "NO"
+    print("Result:", result)
+    
+    print()
+    print(f"Time taken: {time.time() - start_time:.4f} seconds")
+    print(f"Final memory usage: {get_memory_usage():.2f} MB")
