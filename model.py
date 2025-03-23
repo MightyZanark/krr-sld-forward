@@ -169,7 +169,14 @@ class Iff:
         return f"({self.left} ≡ {self.right})"
 
 def is_cnf(expr: Expr) -> bool:
+    if is_literal(expr):
+        return True
     if not isinstance(expr, And):
+        if isinstance(expr, Or):
+            for clause in expr.operands:
+                if not is_literal(clause):
+                    return False
+            return True
         return False
     clause_set = set()
     for clause in expr.operands:
