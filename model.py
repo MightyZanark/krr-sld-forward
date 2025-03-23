@@ -192,3 +192,8 @@ def is_cnf(expr: Expr) -> bool:
 
 def is_literal(expr: Expr) -> bool:
     return isinstance(expr, Symbol) or (isinstance(expr, Not) and isinstance(expr.expr, Symbol))
+
+def convert_to_cnf(expr: Expr) -> Expr:
+    while not is_cnf(expr):
+        expr = expr.to_cnf()
+    return expr
