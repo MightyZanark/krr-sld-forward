@@ -64,22 +64,21 @@ def sld_resolution(knowledge_base: List[Union[Symbol, Implies, And, Or, Not]], g
                 pos = None
                 for op in clause.operands:
                     if not isinstance(op, Not):
-                        pos = clause
+                        if op not in solved:
+                            found_solved = True
+                            pos = op
                     else:
                         if op.expr not in solved:
+                            found_solved = False
                             break
-                    found_solved = True
 
                 if found_solved and pos is not None:
                     solved.append(pos)
+                    found_clause = True
+                    break
                 else:
                     continue
 
-
-                # if is_solved(solved, clause.op1) and isinstance(clause.op2, Symbol) and clause.op2 not in solved:
-                #     solved.append(clause.op2)
-                #     found_clause = True
-                #     break
             elif isinstance(clause, Symbol):
                 # Handle atomic symbols
                 if clause not in solved:
@@ -94,7 +93,7 @@ def sld_resolution(knowledge_base: List[Union[Symbol, Implies, And, Or, Not]], g
 if __name__ == "__main__":
     knowledge_base = list(parse("tc1.cnf")[0])
 
-    goals = [Symbol("4")]
+    goals = [Symbol("3"),Symbol("4")]
 
     # first_grade = Symbol("FirstGrade")
     # child = Symbol("Child")
@@ -122,6 +121,7 @@ if __name__ == "__main__":
             knowledge_base[i] = rule.to_cnf()
     for k in knowledge_base:
         print(k)
+    print()
     # print("ZCCZCZC")
     # for k in knowledge_base:
     #     print(k)
