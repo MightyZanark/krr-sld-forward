@@ -5,40 +5,7 @@ import time
 import psutil
 import os
 
-def forward_chaining(knowledge_base: List[Union[Symbol, Implies, And, Or, Not]]) -> List[Symbol]:
-    inferred = set()
-    new_facts = True
-
-    while new_facts:
-        new_facts = False
-        for rule in knowledge_base:
-            if isinstance(rule, Implies):
-                premise = rule.premise
-                conclusion = rule.conclusion
-                if premise in inferred and conclusion not in inferred:
-                    inferred.add(conclusion)
-                    new_facts = True
-            elif isinstance(rule, And):
-                if rule.op1 in inferred and rule.op2 in inferred:
-                    inferred.add(rule)
-                    new_facts = True
-            elif isinstance(rule, Symbol):
-                if rule not in inferred:
-                    inferred.add(rule)
-                    new_facts = True
-
-    return list(inferred)
-
-def is_solved(solved: List[Union[Symbol, Implies, And, Or, Not]], query: Union[Symbol, Or, Not]) -> bool:
-    if isinstance(query, Symbol):
-        return query in solved
-
-    if isinstance(query, Not):
-        return query.symbol in solved
-
-    return is_solved(solved, query.op1) and is_solved(solved, query.op2)
-
-def sld_resolution(knowledge_base: List[Union[Symbol, Implies, And, Or, Not]], goals: List[Symbol]) -> str:
+def sld_forward_chaining(knowledge_base: List[Union[Symbol, Implies, And, Or, Not]], goals: List[Symbol]) -> str:
     solved = []
 
     while True:
@@ -109,7 +76,7 @@ if __name__ == "__main__":
     print("Goals:",goals)
 
     # Perform SLD resolution
-    result = sld_resolution(knowledge_base, goals)
+    result = sld_forward_chaining(knowledge_base, goals)
     print("Result:", result)
     
     print()
