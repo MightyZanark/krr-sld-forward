@@ -40,7 +40,6 @@ def sld_resolution(knowledge_base: List[Union[Symbol, Implies, And, Or, Not]], g
 
     while True:
         # Step 1: If all goals are solved, return YES
-        print(solved)
         if all(goal in solved for goal in goals):
             return "YES"
 
@@ -91,40 +90,14 @@ def sld_resolution(knowledge_base: List[Union[Symbol, Implies, And, Or, Not]], g
             return "NO"
 
 if __name__ == "__main__":
-    knowledge_base = list(parse("tc1.cnf")[0])
+    knowledge_base = list(parse("tc2.cnf")[0])
 
-    goals = [Symbol("3"),Symbol("4")]
-
-    # first_grade = Symbol("FirstGrade")
-    # child = Symbol("Child")
-    # male = Symbol("Male")
-    # boy = Symbol("Boy")
-    # kindergarten = Symbol("Kindergarten")
-    # female = Symbol("Female")
-    # girl = Symbol("Girl")
-    #
-    # # Define knowledge base
-    # knowledge_base = [
-    #     first_grade,
-    #     Implies(first_grade, child),
-    #     Implies(And(child, male), boy),
-    #     Implies(kindergarten, child),
-    #     Implies(And(child, female), girl),
-    #     female
-    # ]
-
-    # Define goals
-    # goals = [girl]
+    goals = [Symbol("3")]
 
     for i, rule in enumerate(knowledge_base):
         if isinstance(rule, Implies):
             knowledge_base[i] = rule.to_cnf()
-    for k in knowledge_base:
-        print(k)
-    print()
-    # print("ZCCZCZC")
-    # for k in knowledge_base:
-    #     print(k)
+
     # Perform SLD resolution
     result = sld_resolution(knowledge_base, goals)
     print("Result:", result)  # Output: "YES" or "NO"
